@@ -12,7 +12,7 @@ Este proyecto utiliza las siguientes bibliotecas:
 Instalación de dependencias:
 ```bash
 pip install pandas networkx matplotlib
-
+```
 
 ##Funcionalidades
 Menú Inicial
@@ -43,5 +43,5 @@ Para ejecutar el programa, simplemente ejecuta el archivo Python:
 
 ```bash
 python lab1_EDD_Final.py
-
+```
 El programa cargará el dataset de películas y te permitirá interactuar con el árbol AVL a través del menú en la consola.
