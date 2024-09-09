@@ -14,7 +14,7 @@ Instalación de dependencias:
 pip install pandas networkx matplotlib
 ```
 
-##Funcionalidades
+## Funcionalidades
 Menú Inicial
 El programa presenta un menú interactivo donde el usuario puede elegir entre varias opciones:
 1. Cargar películas al árbol (por nombre, índice o año).
@@ -28,7 +28,7 @@ El programa presenta un menú interactivo donde el usuario puede elegir entre va
 Estructura del Árbol AVL
 El árbol AVL está implementado en la clase AVLTree, que contiene métodos para insertar, eliminar, y buscar nodos, además de realizar rotaciones simples y dobles para mantener el equilibrio del árbol.
 
-##Operaciones Disponibles
+## Operaciones Disponibles
 1. Insertar Películas: Inserta un número específico de películas en el árbol, ya sea por nombre, índice o año.
 2. Eliminar Películas: Elimina una película del árbol según su título.
 3. Buscar Películas: Verifica si una película específica está en el árbol.
