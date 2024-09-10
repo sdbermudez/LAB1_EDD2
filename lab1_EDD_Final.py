@@ -34,8 +34,13 @@ def crear_arbol(listaPeliculas):
 
 #Funcion para mostrar el arbol graficamente
 def graficar_arbol(arbol):
+    if arbol.root is None:
+        print("El árbol está vacío.")
+        return
+
     G = nx.DiGraph()
     cola = [arbol.root]
+    
     while cola:
         nodo = cola.pop(0)
         if nodo.left:
@@ -44,9 +49,30 @@ def graficar_arbol(arbol):
         if nodo.right:
             cola.append(nodo.right)
             G.add_edge(nodo.data['Title'], nodo.right.data['Title'])
-    pos = nx.spring_layout(G)
-    nx.draw(G, pos, with_labels=True, node_size=3000, node_color='skyblue')
+
+    pos = hierarchy_pos(G, arbol.root.data['Title'])
+    nx.draw(G, pos, with_labels=True, node_size=2000, node_color="skyblue", font_size=10, font_weight="bold", arrows=True)
     plt.show()
+
+def hierarchy_pos(G, root, width=1., vert_gap=0.2, vert_loc=0, xcenter=0.5):
+    pos = _hierarchy_pos(G, root, width, vert_gap, vert_loc, xcenter)
+    return pos
+
+def _hierarchy_pos(G, root, width=1., vert_gap=0.2, vert_loc=0, xcenter=0.5, pos=None, parent=None, parsed=[]):
+    if pos is None:
+        pos = {root: (xcenter, vert_loc)}
+    else:
+        pos[root] = (xcenter, vert_loc)
+    children = list(G.neighbors(root))
+    if not isinstance(G, nx.DiGraph) and parent is not None:
+        children.remove(parent)  
+    if len(children) != 0:
+        dx = width / len(children) 
+        nextx = xcenter - width/2 - dx/2
+        for child in children:
+            nextx += dx
+            pos = _hierarchy_pos(G, child, width=dx, vert_gap=vert_gap, vert_loc=vert_loc-vert_gap, xcenter=nextx, pos=pos, parent=root, parsed=parsed)
+    return pos
     
 #Funcion que carga las peliculas a una lista de diccionarios teniendo en cuenta el nombre de la pelicula
 def cargar_nombre(numPeliculas, data): 
@@ -202,7 +228,7 @@ class AVLTree:
     
     def eliminar(self, data: dict) -> None:
         self.root = self.__eliminar_r(self.root, data)
-        
+
     def __eliminar_r(self, node: Optional["Node"], data: dict) -> Optional["Node"]:
         if node is None:
             return None
@@ -211,14 +237,27 @@ class AVLTree:
         elif data['Title'] > node.data['Title']:
             node.right = self.__eliminar_r(node.right, data)
         else:
-            if node.left is None:
+            # Caso 1: El nodo a eliminar no tiene hijos
+            if node.left is None and node.right is None:
+                return None
+
+            # Caso 2: El nodo a eliminar tiene solo un hijo
+            elif node.left is None:
                 return node.right
-            if node.right is None:
+            elif node.right is None:
                 return node.left
-            aux = self.__min_r(node.right)
-            node.data = aux.data
-            node.right = self.__eliminar_r(node.right, aux.data)
+
+            # Caso 3: El nodo a eliminar tiene dos hijos
+            else:
+                # Encontrar el sucesor en el subárbol derecho (el nodo más pequeño en el subárbol derecho)
+                sucesor = self.__min_r(node.right)
+                node.data = sucesor.data
+                node.right = self.__eliminar_r(node.right, sucesor.data)
+
+        # Actualizar el balance del nodo actual
         self.update_balance(node)
+
+        # Realizar rotaciones si es necesario para mantener el equilibrio del árbol
         if node.balance == -2:
             if self.__height_r(node.left.left) >= self.__height_r(node.left.right):
                 return self.Rot_simple_right(node)
@@ -229,8 +268,15 @@ class AVLTree:
                 return self.Rot_simple_left(node)
             else:
                 return self.Rot_double_left(node)
+
         return node
-    
+
+    def __min_r(self, node: Optional["Node"]) -> "Node":
+        current = node
+        while current.left is not None:
+            current = current.left
+        return current
+
     def buscar(self, data: dict) -> bool:
         return self.__buscar_r(self.root, data)
     
@@ -273,32 +319,34 @@ class AVLTree:
         return self.__get_level_r(node.right, data, level + 1)
 
 
-    def get_balance_factor(self, node: "Node") -> int:
+    def get_balance_factor(self, data: dict) -> int:
+        node=Node(data)
         return node.balance if node else 0
 
 
-    def find_parent(self, data: Any) -> Optional["Node"]:
+    def find_parent(self, data: dict) -> Optional["Node"]:
         return self.__find_parent_r(self.root, None, data)
 
-    def __find_parent_r(self, node: Optional["Node"], parent: Optional["Node"], data: Any) -> Optional["Node"]:
+    def __find_parent_r(self, node: Optional["Node"], parent: Optional["Node"], data: dict) -> Optional["Node"]:
         if node is None:
             return None
         if node.data == data:
             return parent
-        if data < node.data:
+        if data['Title'] < node.data['Title']:
             return self.__find_parent_r(node.left, node, data)
         else:
             return self.__find_parent_r(node.right, node, data)
 
 
-    def find_grandparent(self, data: Any) -> Optional["Node"]:
+
+    def find_grandparent(self, data: dict) -> Optional["Node"]:
         parent = self.find_parent(data)
         if parent:
             return self.find_parent(parent.data)
         return None
 
 
-    def find_uncle(self, data: Any) -> Optional["Node"]:
+    def find_uncle(self, data: dict) -> Optional["Node"]:
         parent = self.find_parent(data)
         grandparent = self.find_grandparent(data)
         if grandparent is None:
@@ -307,6 +355,7 @@ class AVLTree:
             return grandparent.right
         else:
             return grandparent.left
+
 
 
     def level_order(self) -> None:
@@ -355,13 +404,18 @@ def general(arbol):
     elif op==2:
         nombre=input("Ingrese el nombre de la pelicula que desea eliminar del arbol: ")
         pelicula = data[data['Title'].str.upper() == nombre.upper()]
-        arbol.eliminar(pelicula.iloc[0].to_dict())
+        sw=arbol.buscar(pelicula.iloc[0].to_dict())
+        if sw: 
+            arbol.eliminar(pelicula.iloc[0].to_dict())
+        else: 
+            print("La pelicula no se encuentra en el arbol")
         graficar_arbol(arbol)
         general(arbol)
     elif op==3:
         nombre=input("Ingrese el nombre de la pelicula que desea buscar en el arbol: ")
         pelicula = data[data['Title'].str.upper() == nombre.upper()]
         print(arbol.buscar(pelicula.iloc[0].to_dict()))
+        graficar_arbol(arbol)
         general(arbol)
     elif op==4:
         year = int(input("Ingrese el año de estreno: "))
@@ -373,18 +427,23 @@ def general(arbol):
                 print(nodo.data['Title'])
         else:
             print("No se encontraron películas que cumplan los criterios.")
+        graficar_arbol(arbol)
+        general(arbol)
     elif op==5:
         print("Recorrido por niveles:")
         arbol.level_order()
+        graficar_arbol(arbol)
+        general(arbol)
     elif op==6:
-        titulo = input("Ingrese el título de la película para realizar operaciones adicionales: ")
-        nodo = arbol.search(titulo)
+        nombre = input("Ingrese el título de la película para realizar operaciones adicionales: ")
+        pelicula = data[data['Title'].str.upper() == nombre.upper()]
+        nodo = arbol.buscar(pelicula.iloc[0].to_dict())
         if nodo:
-            nivel = arbol.get_level(titulo)
-            balance = arbol.get_balance_factor(nodo)
-            padre = arbol.find_parent(titulo)
-            abuelo = arbol.find_grandparent(titulo)
-            tio = arbol.find_uncle(titulo)
+            nivel = arbol.get_level(pelicula.iloc[0].to_dict())
+            balance = arbol.get_balance_factor(pelicula.iloc[0].to_dict())
+            padre = arbol.find_parent(pelicula.iloc[0].to_dict())
+            abuelo = arbol.find_grandparent(pelicula.iloc[0].to_dict())
+            tio = arbol.find_uncle(pelicula.iloc[0].to_dict())
 
             print(f"Nivel del nodo: {nivel}")
             print(f"Factor de balanceo: {balance}")
@@ -392,7 +451,9 @@ def general(arbol):
             print(f"Abuelo: {abuelo.data if abuelo else 'No tiene abuelo'}")
             print(f"Tío: {tio.data if tio else 'No tiene tío'}")
         else:
-            print(f"Película '{titulo}' no encontrada.")
+            print(f"Película '{nombre}' no encontrada.")
+        graficar_arbol(arbol)
+        general(arbol)
     elif op==7:
         print("Ha salido del programa")
         
